@@ -1,0 +1,29 @@
+{
+  "generated": "2026-04-07",
+  "round": "2026-04-07-003",
+  "backlog": [
+    {
+      "id": "BL-017",
+      "kind": "implementation",
+      "title": "实现 FULL-E2E 脚本",
+      "scope": ["scripts/full-e2e.js"],
+      "goal": "验证完整业务链路（含真实 B站登录）",
+      "acceptance": "full-e2e.js 能执行从任务创建到结果输出的完整流程",
+      "commands": ["node scripts/full-e2e.js"],
+      "priority": 1,
+      "blockers": []
+    },
+    {
+      "id": "BL-018",
+      "kind": "implementation",
+      "title": "实现 B5 监控回灌机制",
+      "scope": ["scripts/monitor.js", "artifacts/"],
+      "goal": "形成观察 -> 改进闭环",
+      "acceptance": "运行监控脚本后能自动生成改进项 backlog",
+      "commands": ["node scripts/monitor.js --artifacts=artifacts/latest"],
+      "priority": 2,
+      "blockers": []
+    }
+  ],
+  "completed_this_round": []
+}

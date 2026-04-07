@@ -1,0 +1,76 @@
+{
+  "generated": "2026-04-07",
+  "round": "2026-04-07-002",
+  "backlog": [
+    {
+      "id": "BL-012",
+      "kind": "implementation",
+      "title": "修复 api-smoke.js 端口策略",
+      "scope": ["scripts/api-smoke.js"],
+      "goal": "默认独占端口，添加 --reuse-running-server 模式",
+      "acceptance": "api-smoke --check 端口可用性正确，--reuse 模式能连接现有服务器",
+      "commands": ["node scripts/api-smoke.js", "node scripts/api-smoke.js --reuse-running-server"],
+      "priority": 1,
+      "blockers": []
+    },
+    {
+      "id": "BL-013",
+      "kind": "implementation",
+      "title": "实现 artifacts 同步脚本",
+      "scope": ["scripts/sync-artifacts.js"],
+      "goal": "确保 artifacts/latest 与最新归档目录一致",
+      "acceptance": "sync-artifacts.js 能正确同步并验证",
+      "commands": ["node scripts/sync-artifacts.js"],
+      "priority": 2,
+      "blockers": []
+    },
+    {
+      "id": "BL-014",
+      "kind": "implementation",
+      "title": "创建 backlog 生成器和验证器",
+      "scope": ["scripts/validate-backlog.js"],
+      "goal": "修正 backlog ID复用、空commands、已完成项回流问题",
+      "acceptance": "validate-backlog.js 能检测并报告 backlog 问题",
+      "commands": ["node scripts/validate-backlog.js"],
+      "priority": 3,
+      "blockers": []
+    },
+    {
+      "id": "BL-015",
+      "kind": "implementation",
+      "title": "实现 INTEGRATION-SMOKE (mock/stub 路线)",
+      "scope": ["scripts/integration-smoke.js"],
+      "goal": "验证扩展+处理器+队列的集成链路，使用 mock/stub 隔离 B1",
+      "acceptance": "integration-smoke.js 能启动队列服务、mock扩展、mock处理器，监控状态流转",
+      "commands": ["node scripts/integration-smoke.js"],
+      "priority": 4,
+      "blockers": []
+    },
+    {
+      "id": "BL-016",
+      "kind": "analysis",
+      "title": "B1 Chrome 登录态方案评估",
+      "scope": ["artifacts/latest/b1-analysis.md"],
+      "goal": "评估 B1 方案，确定 Mock/Stub + Playwright 引导登录的可行性",
+      "acceptance": "有明确的方案说明和风险评估文档",
+      "artifacts": ["artifacts/latest/b1-analysis.md"],
+      "blockers": []
+    },
+    {
+      "id": "BL-017",
+      "kind": "implementation",
+      "title": "实现 FULL-E2E 脚本",
+      "scope": ["scripts/full-e2e.js"],
+      "goal": "验证完整业务链路（含真实 B站登录）",
+      "acceptance": "full-e2e.js 能执行从任务创建到结果输出的完整流程",
+      "commands": ["node scripts/full-e2e.js"],
+      "priority": 5,
+      "blockers": ["BL-015", "BL-016"]
+    }
+  ],
+  "completed_this_round": [
+    "BL-005: 修复 bootstrap.js 退出码和端口检查语义",
+    "BL-006: 修复 smoke-test.js 并重命名为 api-smoke.js",
+    "BL-007: 定义验证等级产物"
+  ]
+}
