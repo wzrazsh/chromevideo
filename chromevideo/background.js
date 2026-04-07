@@ -157,6 +157,9 @@ async function downloadBilibiliVideo(url, taskId) {
   async function downloadWithChrome(url, filename) {
     log('info', `Downloading: ${filename}`);
     return new Promise((resolve, reject) => {
+      // Need to add Referer header for Bilibili video downloads
+      // We can use declarativeNetRequest to add headers, but it requires manifest changes
+      // Since Bilibili often checks Referer, let's try injecting headers for the download URL
       chrome.downloads.download({
         url: url,
         filename: `${downloadPath}/${filename}`,
@@ -170,7 +173,6 @@ async function downloadBilibiliVideo(url, taskId) {
             if (delta.id === downloadId && delta.state) {
               if (delta.state.current === 'complete') {
                 chrome.downloads.onChanged.removeListener(listener);
-                // 查找下载完成后的真实绝对路径
                 chrome.downloads.search({ id: downloadId }, (results) => {
                   if (results && results.length > 0) {
                     resolve(results[0].filename);
@@ -180,7 +182,14 @@ async function downloadBilibiliVideo(url, taskId) {
                 });
               } else if (delta.state.current === 'interrupted') {
                 chrome.downloads.onChanged.removeListener(listener);
-                reject(new Error('Download interrupted'));
+                // Get more info about interruption
+                chrome.downloads.search({ id: downloadId }, (results) => {
+                  let errorMsg = 'Download interrupted';
+                  if (results && results.length > 0 && results[0].error) {
+                    errorMsg += `: ${results[0].error}`;
+                  }
+                  reject(new Error(errorMsg));
+                });
               }
             }
           }
@@ -295,13 +304,43 @@ function stopPolling() {
   }
 }
 
+async function setupDeclarativeNetRequest() {
+  const ruleId = 1;
+  const oldRules = await chrome.declarativeNetRequest.getDynamicRules();
+  const ruleIds = oldRules.map(rule => rule.id);
+  
+  if (ruleIds.length > 0) {
+    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: ruleIds });
+  }
+
+  await chrome.declarativeNetRequest.updateDynamicRules({
+    addRules: [{
+      id: ruleId,
+      priority: 1,
+      action: {
+        type: 'modifyHeaders',
+        requestHeaders: [
+          { header: 'Referer', operation: 'set', value: 'https://www.bilibili.com' }
+        ]
+      },
+      condition: {
+        urlFilter: '*://*/*',
+        resourceTypes: ['xmlhttprequest', 'media', 'other', 'main_frame', 'sub_frame']
+      }
+    }]
+  });
+  log('info', 'DeclarativeNetRequest rules updated for Referer headers');
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   log('info', 'Chrome Video 插件已安装');
+  setupDeclarativeNetRequest();
   startPolling();
 });
 
 chrome.runtime.onStartup.addListener(() => {
   log('info', '浏览器启动，插件已加载');
+  setupDeclarativeNetRequest();
   startPolling();
 });
 

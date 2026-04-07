@@ -22,11 +22,11 @@
     "scripting",
     "tabs",
     "downloads",
-    "cookies"
+    "cookies",
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess"
   ],
   "host_permissions": [
-    "http://localhost:8080/*",
-    "https://api.bilibili.com/*",
-    "https://*.bilibili.com/*"
+    "<all_urls>"
   ]
 }
