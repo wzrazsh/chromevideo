@@ -1,36 +1,48 @@
-# Verification Report
-Generated: 2026-04-07
-Round: 2026-04-07-003
+# Verification Results
 
 ## Commands Executed
+1. `npm test`
+2. `node scripts/bootstrap.js --check`
+3. `node scripts/api-smoke.js --reuse-running-server`
 
-### node scripts/sync-artifacts.js
-```bash
-node scripts/sync-artifacts.js
+## npm test
+Exit Code: 0
+Output snippet:
 ```
-**Status**: PASS
-**Result**: Synced from 2026-04-07-002 to latest
-
-### node scripts/validate-backlog.js
-```bash
-node scripts/validate-backlog.js
+ PASS  queue-server/index.test.js
+  Queue Server API
+    GET /health
+      √ should return ok status (39 ms)
+    POST /tasks
+      √ should add a task (7 ms)
+    ...
+Test Suites: 1 passed, 1 total
+Tests:       10 passed, 10 total
+Snapshots:   0 total
+Time:        1.245 s, estimated 2 s
+Ran all test suites matching /queue-server/i.
 ```
-**Status**: PASS
-**Exit Code**: 0
-**Result**: 2 backlog items validated
 
-## Result Summary
+## bootstrap.js
+Exit Code: 0
+Output snippet:
+```
+[2026-04-07T21:20:11.060Z] ℹ️ [INFO]
+Critical checks: 5/5
+[2026-04-07T21:20:11.061Z] ✅ [OK] All critical checks passed!
+```
 
-| Command | Status | Exit Code |
-|---------|--------|-----------|
-| sync-artifacts.js | PASS | 0 |
-| validate-backlog.js | PASS | 0 |
+## api-smoke.js
+Exit Code: 0
+Output snippet:
+```
+ℹ️ [INFO] Passed: 6
+⚠️ [WARN] Failed: 0
+ℹ️ [INFO]
+Note: This is API-SMOKE only. Does not test extension or process-video.py
+✅ [OK] All API smoke tests passed!
+```
 
-## Backlog Status
-- BL-017: 实现 FULL-E2E 脚本 (priority: 1)
-- BL-018: 实现 B5 监控回灌机制 (priority: 2)
-
-## Notes
-- Round 2026-04-07-003 started
-- Previous round (2026-04-07-002) artifacts synced to latest
-- sync-artifacts.js findLatestRound logic fixed
+## Verification Rating
+**PASS**
+Exit code 0 achieved and acceptance criteria met for API behavior.
