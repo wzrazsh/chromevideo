@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChromeVideo 队列管理系统</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <style>
+    [v-cloak] { display: none; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen">
+  <div id="app" v-cloak class="max-w-6xl mx-auto p-6">
+    <!-- 头部区域 -->
+    <header class="flex justify-between items-center mb-8 bg-white p-6 rounded-lg shadow-sm">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">ChromeVideo 队列管理系统</h1>
+        <p class="text-sm text-gray-500 mt-1">管理和监控视频处理任务</p>
+      </div>
+      <div class="flex items-center space-x-4">
+        <div class="flex items-center">
+          <span class="relative flex h-3 w-3 mr-2">
+            <span v-if="wsConnected" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-3 w-3" :class="wsConnected ? 'bg-green-500' : 'bg-red-500'"></span>
+          </span>
+          <span class="text-sm font-medium" :class="wsConnected ? 'text-green-600' : 'text-red-600'">
+            {{ wsConnected ? '已连接' : '未连接' }}
+          </span>
+        </div>
+        <div class="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-semibold">
+          队列任务: {{ queueLength }}
+        </div>
+      </div>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- 提交新任务 -->
+      <div class="lg:col-span-1">
+        <div class="bg-white p-6 rounded-lg shadow-sm">
+          <h2 class="text-lg font-semibold mb-4 text-gray-800">添加新任务</h2>
+          <form @submit.prevent="submitTask">
+            <div class="mb-4">
+              <label for="url" class="block text-sm font-medium text-gray-700 mb-1">Bilibili 视频链接</label>
+              <input 
+                type="url" 
+                id="url" 
+                v-model="newTaskUrl" 
+                placeholder="https://www.bilibili.com/video/BV..."
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              >
+            </div>
+            <button 
+              type="submit" 
+              :disabled="isSubmitting"
+              class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              {{ isSubmitting ? '提交中...' : '提交任务' }}
+            </button>
+            <p v-if="submitMessage" :class="['mt-2 text-sm', submitSuccess ? 'text-green-600' : 'text-red-600']">
+              {{ submitMessage }}
+            </p>
+          </form>
+        </div>
+        
+        <!-- 统计面板 -->
+        <div class="bg-white p-6 rounded-lg shadow-sm mt-6">
+          <h2 class="text-lg font-semibold mb-4 text-gray-800">任务统计</h2>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="bg-gray-50 p-4 rounded-md text-center">
+              <div class="text-2xl font-bold text-gray-700">{{ statusCounts.pending || 0 }}</div>
+              <div class="text-xs text-gray-500">等待中</div>
+            </div>
+            <div class="bg-blue-50 p-4 rounded-md text-center">
+              <div class="text-2xl font-bold text-blue-700">{{ statusCounts.downloading || 0 }}</div>
+              <div class="text-xs text-blue-500">下载中</div>
+            </div>
+            <div class="bg-orange-50 p-4 rounded-md text-center">
+              <div class="text-2xl font-bold text-orange-700">{{ statusCounts.processing || 0 }}</div>
+              <div class="text-xs text-orange-500">处理中</div>
+            </div>
+            <div class="bg-green-50 p-4 rounded-md text-center">
+              <div class="text-2xl font-bold text-green-700">{{ statusCounts.completed || 0 }}</div>
+              <div class="text-xs text-green-500">已完成</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 任务列表 -->
+      <div class="lg:col-span-2">
+        <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+          <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <h2 class="text-lg font-semibold text-gray-800">任务列表</h2>
+            <div class="flex space-x-3">
+              <button 
+                v-if="selectedTasks.length > 0" 
+                @click="deleteSelectedTasks" 
+                class="text-sm text-red-600 hover:text-red-800 flex items-center"
+              >
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                删除选中 ({{ selectedTasks.length }})
+              </button>
+              <button @click="fetchTasks" class="text-sm text-blue-600 hover:text-blue-800">
+                刷新
+              </button>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-6 py-3 text-left w-12">
+                    <input 
+                      type="checkbox" 
+                      :checked="allSelected" 
+                      @change="toggleAll"
+                      class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    >
+                  </th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">URL</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">时间</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <tr v-if="tasks.length === 0">
+                  <td colspan="6" class="px-6 py-10 text-center text-sm text-gray-500">
+                    暂无任务
+                  </td>
+                </tr>
+                <template v-for="task in sortedTasks" :key="task.id">
+                  <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <input 
+                        type="checkbox" 
+                        v-model="selectedTasks" 
+                        :value="task.id"
+                        class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      >
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900" :title="task.id">
+                      {{ truncateId(task.id) }}
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" :title="task.url">
+                      <a :href="task.url" target="_blank" class="text-blue-600 hover:underline">{{ task.url }}</a>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" :class="getStatusClass(task.status)">
+                        {{ getStatusText(task.status) }}
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {{ formatDate(task.updatedAt || task.createdAt) }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <button 
+                        v-if="['completed', 'failed', 'processed'].includes(task.status)"
+                        @click="viewResult(task.id)" 
+                        class="text-blue-600 hover:text-blue-900"
+                      >
+                        查看结果
+                      </button>
+                      <span v-else class="text-gray-400">-</span>
+                    </td>
+                  </tr>
+                  <!-- 结果展开行 -->
+                  <tr v-if="expandedTaskId === task.id" class="bg-gray-50">
+                    <td colspan="6" class="px-6 py-4">
+                      <div v-if="loadingResult" class="text-sm text-gray-500 text-center py-2">
+                        加载中...
+                      </div>
+                      <div v-else-if="currentResult" class="text-sm">
+                        <div v-if="currentResult.error" class="mb-2 text-red-600 bg-red-50 p-2 rounded">
+                          <strong>错误:</strong> {{ currentResult.error }}
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <div class="mb-2" v-if="currentResult.videoPath">
+                              <strong>视频路径:</strong> <br>
+                              <code class="text-xs bg-gray-200 p-1 rounded break-all">{{ currentResult.videoPath }}</code>
+                            </div>
+                            <div class="mb-2" v-if="currentResult.audioPath">
+                              <strong>音频路径:</strong> <br>
+                              <code class="text-xs bg-gray-200 p-1 rounded break-all">{{ currentResult.audioPath }}</code>
+                            </div>
+                          </div>
+                          <div>
+                            <div v-if="currentResult.text" class="bg-white p-2 border rounded max-h-40 overflow-y-auto">
+                              <strong>提取文本:</strong>
+                              <p class="text-xs mt-1 whitespace-pre-wrap">{{ currentResult.text }}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div v-else class="text-sm text-gray-500">
+                        暂无结果数据
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref, computed, onMounted, onUnmounted } = Vue;
+
+    createApp({
+      setup() {
+        const tasks = ref([]);
+        const queueLength = ref(0);
+        const wsConnected = ref(false);
+        const newTaskUrl = ref('');
+        const isSubmitting = ref(false);
+        const submitMessage = ref('');
+        const submitSuccess = ref(true);
+        
+        const expandedTaskId = ref(null);
+        const currentResult = ref(null);
+        const loadingResult = ref(false);
+        
+        const selectedTasks = ref([]);
+        
+        let ws = null;
+
+        const sortedTasks = computed(() => {
+          return [...tasks.value].sort((a, b) => {
+            return new Date(b.createdAt) - new Date(a.createdAt);
+          });
+        });
+
+        const allSelected = computed(() => {
+          return tasks.value.length > 0 && selectedTasks.value.length === tasks.value.length;
+        });
+
+        const toggleAll = (event) => {
+          if (event.target.checked) {
+            selectedTasks.value = tasks.value.map(t => t.id);
+          } else {
+            selectedTasks.value = [];
+          }
+        };
+
+        const deleteSelectedTasks = async () => {
+          if (selectedTasks.value.length === 0) return;
+          if (!confirm(`确定要删除选中的 ${selectedTasks.value.length} 个任务吗？\n删除后任务数据及结果将被清除。`)) return;
+          
+          try {
+            const res = await fetch('/tasks', {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ taskIds: selectedTasks.value })
+            });
+            const data = await res.json();
+            if (res.ok) {
+              selectedTasks.value = [];
+              // No need to fetch manually if WS is connected, but doing it just in case
+              fetchTasks();
+            } else {
+              alert('删除失败: ' + (data.error || '未知错误'));
+            }
+          } catch (e) {
+            alert('网络错误，无法连接到服务器');
+          }
+        };
+
+        const statusCounts = computed(() => {
+          const counts = {};
+          tasks.value.forEach(t => {
+            counts[t.status] = (counts[t.status] || 0) + 1;
+          });
+          return counts;
+        });
+
+        const fetchTasks = async () => {
+          try {
+            const res = await fetch('/tasks');
+            const data = await res.json();
+            if (data.tasks) {
+              tasks.value = data.tasks;
+              queueLength.value = tasks.value.filter(t => t.status === 'pending').length;
+            }
+          } catch (e) {
+            console.error('Failed to fetch tasks', e);
+          }
+        };
+
+        const submitTask = async () => {
+          if (!newTaskUrl.value) return;
+          
+          isSubmitting.value = true;
+          submitMessage.value = '';
+          
+          try {
+            const res = await fetch('/tasks', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url: newTaskUrl.value })
+            });
+            const data = await res.json();
+            
+            if (res.ok) {
+              submitSuccess.value = true;
+              submitMessage.value = '任务提交成功！';
+              newTaskUrl.value = '';
+              // No need to fetch, WS will update
+            } else {
+              submitSuccess.value = false;
+              submitMessage.value = data.error || '提交失败';
+            }
+          } catch (e) {
+            submitSuccess.value = false;
+            submitMessage.value = '网络错误，无法连接到服务器';
+          } finally {
+            isSubmitting.value = false;
+            setTimeout(() => { submitMessage.value = ''; }, 3000);
+          }
+        };
+
+        const viewResult = async (taskId) => {
+          if (expandedTaskId.value === taskId) {
+            expandedTaskId.value = null;
+            return;
+          }
+          
+          expandedTaskId.value = taskId;
+          currentResult.value = null;
+          loadingResult.value = true;
+          
+          try {
+            const res = await fetch(`/results/${taskId}`);
+            if (res.ok) {
+              currentResult.value = await res.json();
+            } else {
+              currentResult.value = { error: '无法获取结果或结果不存在' };
+            }
+          } catch (e) {
+            currentResult.value = { error: '网络错误' };
+          } finally {
+            loadingResult.value = false;
+          }
+        };
+
+        const initWebSocket = () => {
+          const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+          const wsUrl = `${protocol}//${window.location.host}/ws`;
+          
+          ws = new WebSocket(wsUrl);
+          
+          ws.onopen = () => {
+            wsConnected.value = true;
+            console.log('WebSocket connected');
+          };
+          
+          ws.onmessage = (event) => {
+            try {
+              const data = JSON.parse(event.data);
+              
+              if (data.type === 'connected') {
+                queueLength.value = data.queueLength;
+              } else if (data.type === 'task_added') {
+                tasks.value.push(data.task);
+                queueLength.value = tasks.value.filter(t => t.status === 'pending').length;
+              } else if (data.type === 'task_updated' || data.type === 'result_received') {
+                const index = tasks.value.findIndex(t => t.id === data.task.id);
+                if (index !== -1) {
+                  tasks.value[index] = data.task;
+                }
+                queueLength.value = tasks.value.filter(t => t.status === 'pending').length;
+                
+                // If viewing this task's result, auto-update it
+                if (data.type === 'result_received' && expandedTaskId.value === data.task.id) {
+                  currentResult.value = data.result;
+                }
+              } else if (data.type === 'tasks_deleted') {
+                const idsToDelete = new Set(data.taskIds);
+                tasks.value = tasks.value.filter(t => !idsToDelete.has(t.id));
+                queueLength.value = tasks.value.filter(t => t.status === 'pending').length;
+                
+                if (expandedTaskId.value && idsToDelete.has(expandedTaskId.value)) {
+                  expandedTaskId.value = null;
+                  currentResult.value = null;
+                }
+              }
+            } catch (e) {
+              console.error('Error parsing WS message', e);
+            }
+          };
+          
+          ws.onclose = () => {
+            wsConnected.value = false;
+            console.log('WebSocket disconnected, retrying in 3s...');
+            setTimeout(initWebSocket, 3000);
+          };
+          
+          ws.onerror = (err) => {
+            console.error('WebSocket error:', err);
+            ws.close();
+          };
+        };
+
+        // Utilities
+        const truncateId = (id) => {
+          if (!id) return '';
+          const parts = id.split('_');
+          if (parts.length > 2) {
+            return `...${parts[parts.length-1]}`;
+          }
+          return id.length > 10 ? id.substring(0, 10) + '...' : id;
+        };
+
+        const formatDate = (dateStr) => {
+          if (!dateStr) return '-';
+          const d = new Date(dateStr);
+          return d.toLocaleString('zh-CN', { 
+            month: '2-digit', day: '2-digit', 
+            hour: '2-digit', minute: '2-digit', second: '2-digit'
+          });
+        };
+
+        const getStatusText = (status) => {
+          const map = {
+            'pending': '等待中',
+            'downloading': '下载中',
+            'processing': '处理中',
+            'completed': '已完成',
+            'processed': '后处理完毕',
+            'failed': '失败'
+          };
+          return map[status] || status;
+        };
+
+        const getStatusClass = (status) => {
+          const map = {
+            'pending': 'bg-gray-100 text-gray-800',
+            'downloading': 'bg-blue-100 text-blue-800',
+            'processing': 'bg-orange-100 text-orange-800',
+            'completed': 'bg-green-100 text-green-800',
+            'processed': 'bg-purple-100 text-purple-800',
+            'failed': 'bg-red-100 text-red-800'
+          };
+          return map[status] || 'bg-gray-100 text-gray-800';
+        };
+
+        onMounted(() => {
+          fetchTasks();
+          initWebSocket();
+        });
+
+        onUnmounted(() => {
+          if (ws) ws.close();
+        });
+
+        return {
+          tasks, sortedTasks, queueLength, wsConnected, 
+          newTaskUrl, submitTask, isSubmitting, submitMessage, submitSuccess,
+          statusCounts, viewResult, expandedTaskId, currentResult, loadingResult,
+          selectedTasks, allSelected, toggleAll, deleteSelectedTasks,
+          truncateId, formatDate, getStatusText, getStatusClass
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>

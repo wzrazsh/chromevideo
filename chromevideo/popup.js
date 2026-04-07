@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const taskInfo = document.getElementById('taskInfo');
   const btnStart = document.getElementById('btnStart');
   const btnStop = document.getElementById('btnStop');
+  const btnDashboard = document.getElementById('btnDashboard');
 
   function updateStatus(status) {
     statusText.textContent = status.polling ? '运行中' : '已停止';
@@ -39,6 +40,10 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshStatus();
       }
     });
+  });
+
+  btnDashboard.addEventListener('click', () => {
+    chrome.tabs.create({ url: 'http://localhost:8080' });
   });
 
   refreshStatus();

@@ -5,8 +5,20 @@ const { WebSocketServer } = require('ws');
 
 const PORT = process.env.PORT || 8080;
 const DATA_DIR = path.join(__dirname, '..', 'data');
+const PUBLIC_DIR = path.join(__dirname, 'public');
 const TASKS_FILE = path.join(DATA_DIR, 'tasks.json');
 const RESULTS_DIR = path.join(DATA_DIR, 'results');
+
+const MIME_TYPES = {
+  '.html': 'text/html',
+  '.js': 'text/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.ico': 'image/x-icon',
+  '.svg': 'image/svg+xml'
+};
 
 const QUEUE_STATES = {
   PENDING: 'pending',
@@ -63,6 +75,21 @@ function saveResult(taskId, result) {
     fs.writeFileSync(filePath, JSON.stringify(result, null, 2));
   } catch (err) {
     console.error('[Queue] Failed to save result:', err.message);
+  }
+}
+
+function deleteTaskData(taskId) {
+  try {
+    const resultFile = path.join(RESULTS_DIR, `${taskId}.json`);
+    if (fs.existsSync(resultFile)) {
+      fs.unlinkSync(resultFile);
+    }
+    const targetDir = path.join(DATA_DIR, 'downloads', taskId);
+    if (fs.existsSync(targetDir)) {
+      fs.rmSync(targetDir, { recursive: true, force: true });
+    }
+  } catch (err) {
+    console.error(`[Queue] Failed to delete data for task ${taskId}:`, err.message);
   }
 }
 
@@ -254,6 +281,56 @@ async function handleRequest(req, res) {
 
   } else if (url.pathname === '/health' && method === 'GET') {
     sendJson(res, 200, { status: 'ok', queueLength: queue.length });
+
+  } else if (url.pathname === '/tasks' && method === 'DELETE') {
+    try {
+      const body = await parseBody(req);
+      if (!body.taskIds || !Array.isArray(body.taskIds)) {
+        return sendJson(res, 400, { error: 'Missing or invalid taskIds field' });
+      }
+      
+      const idsToDelete = new Set(body.taskIds);
+      queue = queue.filter(t => !idsToDelete.has(t.id));
+      
+      // Clean up local files
+      body.taskIds.forEach(id => deleteTaskData(id));
+      
+      saveTasks();
+      notifyClients({ type: 'tasks_deleted', taskIds: body.taskIds });
+      
+      sendJson(res, 200, { success: true, deletedCount: body.taskIds.length });
+    } catch (err) {
+      sendJson(res, 400, { error: err.message });
+    }
+
+  } else if (method === 'GET') {
+    let filePath = url.pathname === '/' ? path.join(PUBLIC_DIR, 'index.html') : path.join(PUBLIC_DIR, url.pathname);
+    let extname = path.extname(filePath);
+    
+    // Prevent directory traversal attacks
+    if (!filePath.startsWith(PUBLIC_DIR)) {
+      return sendJson(res, 403, { error: 'Forbidden' });
+    }
+
+    // Default to HTML if no extension (useful for single-page apps, though not strictly needed here)
+    if (!extname) {
+      filePath += '.html';
+      extname = '.html';
+    }
+
+    fs.readFile(filePath, (error, content) => {
+      if (error) {
+        if (error.code === 'ENOENT') {
+          sendJson(res, 404, { error: 'Not found' });
+        } else {
+          sendJson(res, 500, { error: 'Internal server error' });
+        }
+      } else {
+        const contentType = MIME_TYPES[extname] || 'application/octet-stream';
+        res.writeHead(200, { 'Content-Type': contentType });
+        res.end(content, 'utf-8');
+      }
+    });
 
   } else {
     sendJson(res, 404, { error: 'Not found' });
