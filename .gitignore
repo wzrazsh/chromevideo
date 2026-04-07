@@ -1,0 +1,49 @@
+# 依赖文件
+node_modules/
+
+# 运行时数据与业务生成文件（非常重要，避免提交大量视频和任务状态）
+data/downloads/
+data/results/
+data/tasks.json
+
+# 环境变量与机密文件（保护阿里云 AK/SK 等敏感信息）
+.env
+.env.*
+*.pem
+
+# Python 缓存与虚拟环境
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+.ruff_cache/
+
+# Playwright 测试生成的报告和缓存
+playwright-report/
+test-results/
+
+# 日志文件
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# 编辑器与系统配置（可选，避免不同开发者的环境配置冲突）
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# 临时调试脚本 (用于通过 CDP 连接 Chrome 调试，非核心业务代码)
+check-download.js
+check-sw-logs.js
+get-sw-logs.js
+chrome-cdp.js
+test-connection.js
+
+# 自动化测试浏览器配置缓存 (体积庞大且包含运行时缓存、个人登录态等)
+test-profile/
+
+# Playwright MCP 插件生成的临时文件
+.playwright-mcp/

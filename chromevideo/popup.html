@@ -2,14 +2,31 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Chrome Video</title>
+  <title>Chrome Video 下载器</title>
   <link rel="stylesheet" href="styles.css">
+  <style>
+    body { min-width: 280px; }
+    .status { font-size: 12px; margin: 8px 0; }
+    .task-info { font-size: 11px; color: #666; word-break: break-all; margin-top: 8px; }
+    .btn-row { display: flex; gap: 8px; margin-top: 12px; }
+    button { flex: 1; padding: 8px; border: none; border-radius: 4px; cursor: pointer; }
+    .btn-start { background: #4CAF50; color: white; }
+    .btn-stop { background: #f44336; color: white; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+  </style>
 </head>
 <body>
   <div class="container">
-    <h3>Chrome Video</h3>
-    <p>欢迎使用 Chrome 视频插件模板</p>
-    <button id="actionBtn">点击测试</button>
+    <h3>Chrome Video 下载器</h3>
+    <div class="status">
+      <span>状态: </span>
+      <span id="statusText">加载中...</span>
+    </div>
+    <div id="taskInfo" class="task-info" style="display:none;"></div>
+    <div class="btn-row">
+      <button id="btnStart" class="btn-start">开始</button>
+      <button id="btnStop" class="btn-stop">停止</button>
+    </div>
   </div>
   <script src="popup.js"></script>
 </body>

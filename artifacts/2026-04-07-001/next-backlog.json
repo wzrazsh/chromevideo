@@ -1,0 +1,45 @@
+{
+  "generated": "2026-04-07",
+  "backlog": [
+    {
+      "id": "BL-001",
+      "title": "修复 process-video.py PATCH 能力缺口",
+      "scope": ["process-video.py"],
+      "goal": "支持 PATCH 请求以更新任务状态到 processed",
+      "acceptance": "process-video.py 能成功发送 PATCH 请求并收到 200 响应",
+      "commands": ["python process-video.py"],
+      "priority": 1,
+      "blockers": []
+    },
+    {
+      "id": "BL-002",
+      "title": "创建 bootstrap/health-check 脚本",
+      "scope": ["scripts/"],
+      "goal": "统一检查所有环境依赖，避免 agent 手工拼命令",
+      "acceptance": "脚本能检查 npm, node, python, ffmpeg, 并能启动队列服务",
+      "commands": ["node scripts/bootstrap.js --check"],
+      "priority": 2,
+      "blockers": []
+    },
+    {
+      "id": "BL-003",
+      "title": "创建 end-to-end smoke test 脚本",
+      "scope": ["scripts/"],
+      "goal": "自动完成服务启动、任务注入、状态检查",
+      "acceptance": "脚本能完整执行 pending -> completed 流程",
+      "commands": ["node scripts/smoke-test.js"],
+      "priority": 3,
+      "blockers": ["BL-001", "BL-002"]
+    },
+    {
+      "id": "BL-004",
+      "title": "解决 B 站登录态依赖",
+      "scope": ["chromevideo/"],
+      "goal": "将人工前置条件显式脚本化检查",
+      "acceptance": "能检测 Chrome profile 是否存在且已登录",
+      "commands": ["node scripts/check-login.js"],
+      "priority": 4,
+      "blockers": []
+    }
+  ]
+}

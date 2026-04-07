@@ -1,0 +1,44 @@
+{
+  "generated": "2026-04-07",
+  "blockers": [
+    {
+      "id": "B1",
+      "description": "Chrome 扩展依赖本地已登录的真实浏览器 profile",
+      "impact": "无法在干净环境中无人值守启动",
+      "status": "partially_resolved",
+      "note": "已创建 scripts/check-login.js 检查脚本，但不能完全自动化验证登录态"
+    },
+    {
+      "id": "B2",
+      "description": "process-video.py 调用 PATCH 更新任务，但内部 HTTP helper 只实现了 GET/POST",
+      "impact": "处理链路不能可靠推进到 processed",
+      "status": "resolved",
+      "resolved_at": "2026-04-07",
+      "change": "在 fetch_json() 中添加了 PATCH 方法支持"
+    },
+    {
+      "id": "B3",
+      "description": "缺少统一的 bootstrap 和 end-to-end 编排脚本",
+      "impact": "agent 需要手工拼接命令，稳定性差",
+      "status": "resolved",
+      "resolved_at": "2026-04-07",
+      "change": "创建了 scripts/bootstrap.js 和 scripts/smoke-test.js"
+    },
+    {
+      "id": "B4",
+      "description": "缺少标准化产物目录和结构化执行报告",
+      "impact": "agent 无法基于上一轮结果稳定演进",
+      "status": "resolved",
+      "resolved_at": "2026-04-07",
+      "change": "创建了 artifacts/latest/ 目录和完整报告"
+    },
+    {
+      "id": "B5",
+      "description": "缺少运行后监控和失败回灌机制",
+      "impact": "无法形成观察 -> 改进的闭环",
+      "status": "unresolved",
+      "note": "smoke-test.js 可作为监控基础，但尚未集成自动回灌"
+    }
+  ],
+  "automation_status": "partial automation -> automation-ready (需验证 B1 和 B5)"
+}

@@ -1,23 +1,46 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const btn = document.getElementById('actionBtn');
-  
-  if (btn) {
-    btn.addEventListener('click', async () => {
-      // 演示：向当前活动的标签页发送消息
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (tab) {
-        chrome.tabs.sendMessage(tab.id, { action: 'ping' }, (response) => {
-          console.log('收到来自 content script 的响应:', response);
-          if (response && response.status === 'ok') {
-            btn.textContent = '交互成功！';
-            btn.style.backgroundColor = '#2196F3';
-            setTimeout(() => {
-              btn.textContent = '点击测试';
-              btn.style.backgroundColor = '#4CAF50';
-            }, 2000);
-          }
-        });
+  const statusText = document.getElementById('statusText');
+  const taskInfo = document.getElementById('taskInfo');
+  const btnStart = document.getElementById('btnStart');
+  const btnStop = document.getElementById('btnStop');
+
+  function updateStatus(status) {
+    statusText.textContent = status.polling ? '运行中' : '已停止';
+    btnStart.disabled = status.polling;
+    btnStop.disabled = !status.polling;
+
+    if (status.currentTask) {
+      taskInfo.style.display = 'block';
+      taskInfo.textContent = `当前任务: ${status.currentTask.url}`;
+    } else {
+      taskInfo.style.display = 'none';
+    }
+  }
+
+  function refreshStatus() {
+    chrome.runtime.sendMessage({ action: 'getStatus' }, (response) => {
+      if (response) {
+        updateStatus(response);
       }
     });
   }
+
+  btnStart.addEventListener('click', () => {
+    chrome.runtime.sendMessage({ action: 'startPolling' }, (response) => {
+      if (response && response.success) {
+        refreshStatus();
+      }
+    });
+  });
+
+  btnStop.addEventListener('click', () => {
+    chrome.runtime.sendMessage({ action: 'stopPolling' }, (response) => {
+      if (response && response.success) {
+        refreshStatus();
+      }
+    });
+  });
+
+  refreshStatus();
+  setInterval(refreshStatus, 2000);
 });
